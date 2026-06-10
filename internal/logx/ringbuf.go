@@ -2,10 +2,12 @@ package logx
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type Entry struct {
+	Seq   uint64
 	Time  time.Time
 	Level Level
 	Msg   string
@@ -16,6 +18,7 @@ type RingBuffer struct {
 	mu      sync.Mutex
 	entries []Entry
 	cap     int
+	next    atomic.Uint64
 }
 
 func NewRingBuffer(capacity int) *RingBuffer {
@@ -26,6 +29,7 @@ func NewRingBuffer(capacity int) *RingBuffer {
 }
 
 func (r *RingBuffer) Push(e Entry) {
+	e.Seq = r.next.Add(1)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.entries) >= r.cap {

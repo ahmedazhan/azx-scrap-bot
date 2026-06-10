@@ -24,6 +24,7 @@ func LogsRecent(a *app.App) fiber.Handler {
 		out := make([]fiber.Map, 0, len(entries))
 		for _, e := range entries {
 			out = append(out, fiber.Map{
+				"seq":   e.Seq,
 				"time":  e.Time.UTC().Format(time.RFC3339Nano),
 				"level": e.Level.String(),
 				"msg":   e.Msg,
@@ -41,6 +42,8 @@ func LogsStream(a *app.App) fiber.Handler {
 		c.Set("Connection", "keep-alive")
 		c.Set("X-Accel-Buffering", "no")
 
+		ctx := c.UserContext()
+
 		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
 			ticker := time.NewTicker(2 * time.Second)
 			defer ticker.Stop()
@@ -49,18 +52,21 @@ func LogsStream(a *app.App) fiber.Handler {
 				return w.Flush() == nil
 			}
 
-			last := a.Ring.Snapshot()
-			for _, e := range last {
+			history := a.Ring.Snapshot()
+			for _, e := range history {
 				writeLogxEntry(w, e)
 			}
 			if !writeFlush() {
 				return
 			}
-			idx := len(last)
+			var lastSeq uint64
+			if n := len(history); n > 0 {
+				lastSeq = history[n-1].Seq
+			}
 
 			for {
 				select {
-				case <-c.Context().Done():
+				case <-ctx.Done():
 					return
 				case <-ticker.C:
 					if _, err := fmt.Fprintf(w, ":heartbeat\n\n"); err != nil {
@@ -70,19 +76,20 @@ func LogsStream(a *app.App) fiber.Handler {
 						return
 					}
 					entries := a.Ring.Snapshot()
-					if len(entries) > idx {
-						for i := idx; i < len(entries); i++ {
-							writeLogxEntry(w, entries[i])
-						}
-					} else if idx > 0 && len(entries) < idx {
-						for _, e := range entries {
+					emitted := false
+					for _, e := range entries {
+						if e.Seq > lastSeq {
 							writeLogxEntry(w, e)
+							lastSeq = e.Seq
+							emitted = true
 						}
+					}
+					if !emitted {
+						continue
 					}
 					if !writeFlush() {
 						return
 					}
-					idx = len(entries)
 				}
 			}
 		}))
@@ -92,6 +99,7 @@ func LogsStream(a *app.App) fiber.Handler {
 
 func writeLogxEntry(w *bufio.Writer, e logx.Entry) {
 	doc := fiber.Map{
+		"seq":   e.Seq,
 		"time":  e.Time.UTC().Format(time.RFC3339Nano),
 		"level": e.Level.String(),
 		"msg":   e.Msg,

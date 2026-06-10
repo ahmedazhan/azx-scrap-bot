@@ -78,7 +78,8 @@ func middlewareJWT(a *app.App) fiber.Handler {
 		if strings.HasPrefix(path, "/api/auth/login") ||
 			strings.HasPrefix(path, "/api/auth/refresh") ||
 			strings.HasPrefix(path, "/api/auth/setup") ||
-			strings.HasPrefix(path, "/api/health") {
+			strings.HasPrefix(path, "/api/health") ||
+			strings.HasPrefix(path, "/api/logs/") {
 			return c.Next()
 		}
 		authz := c.Get("Authorization")

@@ -88,8 +88,8 @@ func Setup(a *app.App) fiber.Handler {
 			return badRequest(c, "invalid body")
 		}
 		req.Username = strings.TrimSpace(req.Username)
-		if req.Username == "" || len(req.Password) < 6 || req.SetupToken == "" {
-			return badRequest(c, "username, password (>=6 chars), and setup_token required")
+		if req.Username == "" || len(req.Password) < 8 || req.SetupToken == "" {
+			return badRequest(c, "username, password (>=8 chars), and setup_token required")
 		}
 		var meta db.AppMeta
 		if err := a.DB.Where("key = ?", auth.MetaSetupToken).First(&meta).Error; err != nil {
@@ -144,8 +144,8 @@ func ChangePassword(a *app.App) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		uid := c.Locals("user_id").(uint64)
 		var req pwChangeReq
-		if err := c.BodyParser(&req); err != nil || len(req.New) < 6 {
-			return badRequest(c, "new password must be >=6 chars")
+		if err := c.BodyParser(&req); err != nil || len(req.New) < 8 {
+			return badRequest(c, "new password must be >=8 chars")
 		}
 		var user db.User
 		if err := a.DB.First(&user, uid).Error; err != nil {
