@@ -1,0 +1,10 @@
+azx-scrap-bot
+store.db*
+logs/
+ui/node_modules/
+ui/dist/
+internal/assets/ui/*
+!internal/assets/ui/.gitkeep
+.DS_Store
+*.log
+.env
