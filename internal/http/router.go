@@ -2,6 +2,7 @@ package http
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -13,9 +14,9 @@ func NewRouter(a *app.App) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName:               "azx-scrap-bot",
 		DisableStartupMessage: true,
-		ReadTimeout:           30,
-		WriteTimeout:          30,
-		IdleTimeout:           120,
+		ReadTimeout:           30 * time.Second,
+		WriteTimeout:          30 * time.Second,
+		IdleTimeout:           120 * time.Second,
 		ErrorHandler:          errorHandler(a.Log),
 	})
 

@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	Addr         string
-	DB           string
-	LogDir       string
-	LogLevel     string
-	LogMaxSize   int
+	Addr          string
+	DB            string
+	LogDir        string
+	LogLevel      string
+	LogMaxSize    int
 	LogMaxBackups int
-	LogCompress  bool
+	LogCompress   bool
+	AssetsDir     string
 }
 
 func envOr(key, def string) string {
@@ -55,6 +56,7 @@ func Load(args []string) (*Config, error) {
 	logMax := fs.Int("log-max-size", 50, "MB per file")
 	logBackups := fs.Int("log-max-backups", 5, "rotated files to keep")
 	logCompress := fs.Bool("log-compress", true, "gzip old logs")
+	assetsDir := fs.String("assets-dir", "", "serve SPA from this directory (dev only; falls back to embedded)")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -67,6 +69,7 @@ func Load(args []string) (*Config, error) {
 		LogMaxSize:    envIntOr("LOG_MAX_SIZE", *logMax),
 		LogMaxBackups: envIntOr("LOG_MAX_BACKUPS", *logBackups),
 		LogCompress:   envBoolOr("LOG_COMPRESS", *logCompress),
+		AssetsDir:     envOr("ASSETS_DIR", *assetsDir),
 	}
 
 	switch strings.ToLower(cfg.LogLevel) {
