@@ -40,7 +40,8 @@ build:
 
 # Run the Go binary with the SPA served from disk via ASSETS_DIR (no rebuild on UI change).
 # Uses the host Go toolchain (no GOOS=linux) so `go run` works on macOS/Linux dev boxes.
-dev-go:
+# Depends on `ui` so the //go:embed in internal/assets/assets.go has files to embed.
+dev-go: ui
 	ASSETS_DIR=$(CURDIR)/ui/dist $(GODEV) run ./cmd/azx-scrap-bot
 
 # Both at once: Go server on :8088, Vite on :5174. Vite proxies /api -> :8088.
