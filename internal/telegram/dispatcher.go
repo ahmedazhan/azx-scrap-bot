@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"log/slog"
@@ -43,8 +44,17 @@ func NewDispatcher(database *gorm.DB, log *slog.Logger) *Dispatcher {
 
 func (d *Dispatcher) reloadConfig() {
 	var c db.TelegramConfig
-	if err := d.db.First(&c, 1).Error; err != nil {
-		c = db.TelegramConfig{ID: 1}
+	err := d.db.First(&c, 1).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c = db.TelegramConfig{ID: 1, ThrottleMs: 250, Enabled: false}
+			if e := d.db.Create(&c).Error; e == nil {
+				d.log.Info("telegram config bootstrapped")
+			}
+		} else {
+			d.log.Warn("telegram config load", "err", err)
+			return
+		}
 	}
 	d.mu.Lock()
 	d.cfg = c

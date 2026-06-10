@@ -62,7 +62,7 @@ dev-bg:
 dev-stop:
 	@lsof -ti:5174 -ti:8088 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 	@pkill -f "azx-scrap-bot|cmd/azx-scrap-bot" 2>/dev/null || true
-	@pkill -f "vite" 2>/dev/null || true
+	@pkill -f "node.*vite/bin/vite.js" 2>/dev/null || true
 	@echo "  ▸ dev servers stopped"
 
 # --- Ship ---------------------------------------------------------------------
