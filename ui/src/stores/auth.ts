@@ -93,9 +93,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function tryRefresh(): Promise<boolean> {
-    if (!refresh.value) return false
+    const stored = refresh.value || localStorage.getItem(REFRESH_KEY)
+    if (!stored) {
+      logout()
+      return false
+    }
     try {
-      const res = await authApi.refresh(refresh.value)
+      const res = await authApi.refresh(stored)
       setTokens(res.access, res.refresh)
       return true
     } catch {

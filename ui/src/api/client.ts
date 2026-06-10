@@ -8,7 +8,7 @@ const REFRESH_KEY = 'azx_refresh'
 let refreshing: Promise<boolean> | null = null
 
 export const api: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -35,26 +35,38 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const auth = useAuthStore()
     const ui = useUIStore()
-    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; _retried?: boolean }) | undefined
 
-    if (error.response?.status === 401 && !original._retry && auth.refresh) {
-      original._retry = true
-      if (!refreshing) refreshing = auth.tryRefresh()
-      const ok = await refreshing
-      refreshing = null
-      if (ok && original) {
-        if (original.headers && typeof (original.headers as any).set === 'function') {
-          ;(original.headers as any).set('Authorization', `Bearer ${auth.access}`)
-        } else {
-          original.headers = (original.headers as any) || {}
-          ;(original.headers as any).Authorization = `Bearer ${auth.access}`
+    const isAuthEndpoint =
+      !!original?.url &&
+      (original.url.includes('/auth/login') ||
+        original.url.includes('/auth/refresh') ||
+        original.url.includes('/auth/setup'))
+
+    if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
+      original._retried = true
+      if (auth.refresh) {
+        if (!refreshing) refreshing = auth.tryRefresh()
+        const ok = await refreshing
+        refreshing = null
+        if (ok) {
+          const newToken = auth.access || localStorage.getItem(ACCESS_KEY)
+          if (newToken) {
+            if (original.headers && typeof (original.headers as any).set === 'function') {
+              ;(original.headers as any).set('Authorization', `Bearer ${newToken}`)
+            } else {
+              original.headers = (original.headers as any) || {}
+              ;(original.headers as any).Authorization = `Bearer ${newToken}`
+            }
+            return api.request(original)
+          }
         }
-        return api.request(original)
       }
       auth.logout()
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login'
+        window.location.replace('/login')
       }
+      return Promise.reject(error)
     }
 
     if (error.response && (error.response.status as number) >= 500) {

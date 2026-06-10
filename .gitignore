@@ -8,3 +8,6 @@ internal/assets/ui/*
 .DS_Store
 *.log
 .env
+.env.local
+ui/.env
+ui/.env.local

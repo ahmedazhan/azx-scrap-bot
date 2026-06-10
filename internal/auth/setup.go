@@ -38,7 +38,25 @@ func ConsumeSetupToken(gdb *gorm.DB) error {
 	return gdb.Where("key = ?", MetaSetupToken).Delete(&db.AppMeta{}).Error
 }
 
-func EnsureJWTSecret(gdb *gorm.DB) (string, error) {
+func EnsureJWTSecret(gdb *gorm.DB, envSecret string) (string, error) {
+	if envSecret != "" {
+		var meta db.AppMeta
+		if err := gdb.Where("key = ?", MetaJWTSecret).First(&meta).Error; err == nil {
+			if meta.Value != envSecret {
+				if err := gdb.Model(&db.AppMeta{}).Where("key = ?", MetaJWTSecret).Update("value", envSecret).Error; err != nil {
+					return "", err
+				}
+			}
+		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+			if err := gdb.Create(&db.AppMeta{Key: MetaJWTSecret, Value: envSecret}).Error; err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+		return envSecret, nil
+	}
+
 	var meta db.AppMeta
 	err := gdb.Where("key = ?", MetaJWTSecret).First(&meta).Error
 	if err == nil {

@@ -9,13 +9,18 @@ PKG_MGR   ?= pnpm
 # Add local bin to PATH so pnpm-installed CLIs (e.g. vite) are found.
 export PATH := $(CURDIR)/ui/node_modules/.bin:$(PATH)
 
-.PHONY: all ui build dist run test lint clean tidy dev dev-ui dev-go dev-stop dev-bg deps
+.PHONY: all ui build dist run test lint clean tidy dev dev-ui dev-go dev-stop dev-bg deps env
 
 all: ui build
 
+env:
+	@test -f .env || cp .env.example .env
+	@test -f ui/.env || cp ui/.env.example ui/.env
+	@echo "  ▸ .env and ui/.env ready (edit to customize)"
+
 # --- UI -----------------------------------------------------------------------
 
-deps:
+deps: env
 	cd ui && $(PKG_MGR) install --frozen-lockfile
 
 ui: deps

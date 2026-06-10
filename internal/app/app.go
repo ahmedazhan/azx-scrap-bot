@@ -57,7 +57,7 @@ func New(version string, cfg *Config) (*App, error) {
 		return nil, fmt.Errorf("seed: %w", err)
 	}
 
-	secret, err := auth.EnsureJWTSecret(database)
+	secret, err := auth.EnsureJWTSecret(database, cfg.JWTSecret)
 	if err != nil {
 		lx.Shutdown(context.Background())
 		return nil, fmt.Errorf("jwt secret: %w", err)
