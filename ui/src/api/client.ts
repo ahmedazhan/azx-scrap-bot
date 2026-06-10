@@ -13,9 +13,16 @@ export const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Read the access token directly from localStorage in the interceptor so
+// the value is always current — the Pinia store's ref can transiently
+// be empty during HMR or right after setTokens(), which would otherwise
+// cause authed requests to land without an Authorization header.
+function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_KEY)
+}
+
 function attachAuthHeader(config: any) {
-  const auth = useAuthStore()
-  const token = auth.access || localStorage.getItem(ACCESS_KEY)
+  const token = getAccessToken()
   if (!token) return
   if (config.headers && typeof config.headers.set === 'function') {
     config.headers.set('Authorization', `Bearer ${token}`)
@@ -45,12 +52,13 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && original && !original._retried && !isAuthEndpoint) {
       original._retried = true
-      if (auth.refresh) {
+      // Try refresh once
+      if (auth.refresh || localStorage.getItem(REFRESH_KEY)) {
         if (!refreshing) refreshing = auth.tryRefresh()
         const ok = await refreshing
         refreshing = null
         if (ok) {
-          const newToken = auth.access || localStorage.getItem(ACCESS_KEY)
+          const newToken = localStorage.getItem(ACCESS_KEY)
           if (newToken) {
             if (original.headers && typeof (original.headers as any).set === 'function') {
               ;(original.headers as any).set('Authorization', `Bearer ${newToken}`)
@@ -62,9 +70,21 @@ api.interceptors.response.use(
           }
         }
       }
-      auth.logout()
-      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.replace('/login')
+      // Refresh failed or no refresh token. The token (or secret) is bad.
+      // Nuke all localStorage and reload to /login.
+      const errBody = (error.response?.data as { error?: string } | undefined)?.error || ''
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(ACCESS_KEY)
+          localStorage.removeItem(REFRESH_KEY)
+          localStorage.removeItem('azx_user')
+        } catch {}
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/setup') {
+          if (errBody === 'invalid token' || errBody === 'invalid refresh') {
+            ui.showToast('Session expired — please sign in again', 'error')
+          }
+          window.location.replace('/login')
+        }
       }
       return Promise.reject(error)
     }
