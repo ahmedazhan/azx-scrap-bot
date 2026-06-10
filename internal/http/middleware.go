@@ -80,8 +80,10 @@ func middlewareJWT(a *app.App) fiber.Handler {
 			strings.HasPrefix(path, "/api/auth/setup") ||
 			strings.HasPrefix(path, "/api/health") ||
 			strings.HasPrefix(path, "/api/logs/") {
+			a.Log.Debug("jwt bypass", "path", path)
 			return c.Next()
 		}
+		a.Log.Debug("jwt check", "path", path, "has_authz", c.Get("Authorization") != "")
 		authz := c.Get("Authorization")
 		const prefix = "Bearer "
 		if !strings.HasPrefix(authz, prefix) {

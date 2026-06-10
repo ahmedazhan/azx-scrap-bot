@@ -2,6 +2,9 @@ import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestCo
 import { useAuthStore } from '@/stores/auth'
 import { useUIStore } from '@/stores/ui'
 
+const ACCESS_KEY = 'azx_access'
+const REFRESH_KEY = 'azx_refresh'
+
 let refreshing: Promise<boolean> | null = null
 
 export const api: AxiosInstance = axios.create({
@@ -10,16 +13,20 @@ export const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-api.interceptors.request.use((config) => {
+function attachAuthHeader(config: any) {
   const auth = useAuthStore()
-  if (auth.access) {
-    if (config.headers && typeof (config.headers as any).set === 'function') {
-      ;(config.headers as any).set('Authorization', `Bearer ${auth.access}`)
-    } else {
-      config.headers = (config.headers as any) || {}
-      ;(config.headers as any).Authorization = `Bearer ${auth.access}`
-    }
+  const token = auth.access || localStorage.getItem(ACCESS_KEY)
+  if (!token) return
+  if (config.headers && typeof config.headers.set === 'function') {
+    config.headers.set('Authorization', `Bearer ${token}`)
+  } else {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
   }
+}
+
+api.interceptors.request.use((config) => {
+  attachAuthHeader(config)
   return config
 })
 
