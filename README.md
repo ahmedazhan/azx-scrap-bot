@@ -10,15 +10,27 @@ A single-binary multi-site scraper with Telegram alerts, in Go + Vue 3.
     make dist     # build UI + Go binary, UPX-compress
     ./azx-scrap-bot
 
-Open http://localhost:8080 and follow the first-run setup.
+Open http://localhost:8088 and follow the first-run setup.
 
 ## Development
 
-    make dev          # foreground: Go (:8080) + Vite (:5173) in parallel
+    make dev          # foreground: Go (:8088) + Vite (:5174) in parallel
     make dev-bg       # detached, survives the spawning shell
     make dev-stop     # kills both
 
-Open http://localhost:5173 — Vite proxies `/api/*` to the Go server.
+Open http://localhost:5174 — Vite proxies `/api/*` to the Go server.
+
+## Ports
+
+Dev uses non-default ports to avoid clashing with common local apps
+(some stacks squat on 8080 / 5173 by default):
+
+- **Go API**: `:8088`
+- **Vite UI**: `:5174`
+
+If you need different ports, edit `.env` (`ADDR=`) and `ui/vite.config.ts`
+(`server.port`). For the `make dev-bg` / `make dev-stop` targets, also
+update the `lsof` port list in the Makefile.
 
 ## Configuration
 

@@ -83,7 +83,7 @@ func Load(args []string) (*Config, error) {
 	loadDotEnv(".env")
 
 	fs := flag.NewFlagSet("azx-scrap-bot", flag.ContinueOnError)
-	addr := fs.String("addr", ":8080", "listen address")
+	addr := fs.String("addr", ":8088", "listen address")
 	db := fs.String("db", "./store.db", "sqlite path")
 	logDir := fs.String("log-dir", "./logs", "log directory")
 	logLevel := fs.String("log-level", "debug", "debug|info|warn|error")

@@ -29,7 +29,7 @@ ui: deps
 	rm -rf internal/assets/ui/*
 	cp -R ui/dist/* internal/assets/ui/
 
-# Vite dev server only. Proxies /api -> http://localhost:8080.
+# Vite dev server only. Proxies /api -> http://localhost:8088.
 dev-ui:
 	cd ui && $(PKG_MGR) run dev
 
@@ -43,8 +43,8 @@ build:
 dev-go:
 	ASSETS_DIR=$(CURDIR)/ui/dist $(GODEV) run ./cmd/azx-scrap-bot
 
-# Both at once: Go server on :8080, Vite on :5173. Vite proxies /api -> :8080.
-# Open http://localhost:5173 for the UI; the Go API is hit directly.
+# Both at once: Go server on :8088, Vite on :5174. Vite proxies /api -> :8088.
+# Open http://localhost:5174 for the UI; the Go API is hit directly.
 # Foreground: Ctrl+C kills both.
 dev:
 	@trap 'kill 0' INT TERM; \
@@ -56,11 +56,11 @@ dev-bg:
 	@nohup bash -c "$(MAKE) -j2 dev-go dev-ui" > /tmp/azx-dev.log 2>&1 &
 	@sleep 1
 	@echo "  ▸ dev-bg launched; tail: tail -f /tmp/azx-dev.log"
-	@echo "  ▸ open http://localhost:5173   (Go API on :8080)"
+	@echo "  ▸ open http://localhost:5174   (Go API on :8088)"
 	@echo "  ▸ stop with:  make dev-stop"
 
 dev-stop:
-	@lsof -ti:5173 -ti:8080 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+	@lsof -ti:5174 -ti:8088 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 	@pkill -f "azx-scrap-bot|cmd/azx-scrap-bot" 2>/dev/null || true
 	@pkill -f "vite" 2>/dev/null || true
 	@echo "  ▸ dev servers stopped"
