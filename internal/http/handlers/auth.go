@@ -46,6 +46,27 @@ func Health(a *app.App) fiber.Handler {
 	}
 }
 
+func Echo(a *app.App) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		authz := c.Get("Authorization")
+		prefix := ""
+		if len(authz) > 36 {
+			prefix = authz[7:36] + "..."
+		}
+		return ok(c, fiber.Map{
+			"method":         c.Method(),
+			"path":           c.Path(),
+			"has_authz":      authz != "",
+			"authz_prefix":   prefix,
+			"origin":         c.Get("Origin"),
+			"user_id_in_ctx": c.Locals("user_id"),
+			"query":          c.Queries(),
+			"remote_ip":      c.IP(),
+			"server_version": a.Version,
+		}, nil)
+	}
+}
+
 func SetupInfo(a *app.App) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var count int64

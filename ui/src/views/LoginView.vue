@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
-import { getErrorMessage } from '@/api/client'
+import { api, getErrorMessage } from '@/api/client'
 import { setupApi } from '@/api/setup'
 import ThaanaText from '@/components/ThaanaText.vue'
 
@@ -16,6 +16,17 @@ const password = ref(import.meta.env.VITE_ADMIN_PASSWORD || '')
 const showPwd = ref(false)
 const submitting = ref(false)
 const localError = ref<string | null>(null)
+const debugOutput = ref<string>('')
+
+async function runDiagnostic() {
+  debugOutput.value = '...'
+  try {
+    const echo = await api.get('/_echo')
+    debugOutput.value = JSON.stringify(echo.data, null, 2)
+  } catch (e) {
+    debugOutput.value = 'ERR: ' + getErrorMessage(e)
+  }
+}
 
 onMounted(async () => {
   try {
@@ -154,6 +165,20 @@ onUnmounted(() => window.removeEventListener('keydown', onKey))
           First time?
           <router-link to="/setup" class="text-violet-400 hover:underline">Set up admin</router-link>
         </div>
+
+        <details class="mt-6">
+          <summary class="cursor-pointer text-[11px] text-dim hover:text-mid">Diagnostic</summary>
+          <div class="mt-2 space-y-2">
+            <button
+              type="button"
+              class="rounded-lg border border-ink-700 bg-ink-800/60 px-3 py-1.5 text-[11px] text-mid hover:bg-ink-700"
+              @click="runDiagnostic"
+            >
+              Run /api/_echo
+            </button>
+            <pre v-if="debugOutput" class="max-h-48 overflow-auto rounded-lg border border-ink-700 bg-ink-900 p-2 text-[10px] text-thaana-text">{{ debugOutput }}</pre>
+          </div>
+        </details>
       </div>
     </div>
   </div>

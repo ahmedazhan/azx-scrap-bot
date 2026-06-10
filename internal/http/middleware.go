@@ -80,12 +80,13 @@ func middlewareJWT(a *app.App) fiber.Handler {
 			strings.HasPrefix(path, "/api/auth/setup") ||
 			strings.HasPrefix(path, "/api/health") ||
 			strings.HasPrefix(path, "/api/logs/") ||
-			strings.HasPrefix(path, "/api/setup-info") {
+			strings.HasPrefix(path, "/api/setup-info") ||
+			strings.HasPrefix(path, "/api/_echo") {
 			a.Log.Debug("jwt bypass", "path", path)
 			return c.Next()
 		}
-		a.Log.Debug("jwt check", "path", path, "has_authz", c.Get("Authorization") != "")
 		authz := c.Get("Authorization")
+		a.Log.Debug("jwt check", "path", path, "has_authz", authz != "", "token_prefix", tokenPrefix(authz))
 		const prefix = "Bearer "
 		if !strings.HasPrefix(authz, prefix) {
 			return fiber.NewError(fiber.StatusUnauthorized, "missing bearer token")
@@ -94,11 +95,21 @@ func middlewareJWT(a *app.App) fiber.Handler {
 		uid, err := a.Auth.Parse(token)
 		if err != nil {
 			if err == jwt.ErrTokenExpired || strings.Contains(err.Error(), "token expired") {
+				a.Log.Warn("jwt expired", "path", path, "token_prefix", tokenPrefix(token), "err", err.Error())
 				return fiber.NewError(fiber.StatusUnauthorized, "token expired")
 			}
+			a.Log.Warn("jwt invalid", "path", path, "token_prefix", tokenPrefix(token), "err", err.Error())
 			return fiber.NewError(fiber.StatusUnauthorized, "invalid token")
 		}
 		c.Locals("user_id", uid)
 		return c.Next()
 	}
+}
+
+func tokenPrefix(s string) string {
+	s = strings.TrimPrefix(s, "Bearer ")
+	if len(s) > 30 {
+		return s[:30] + "..."
+	}
+	return s
 }

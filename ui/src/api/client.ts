@@ -22,6 +22,20 @@ function getAccessToken(): string | null {
 }
 
 function attachAuthHeader(config: any) {
+  const url = (config.url || '') as string
+  // Don't attach to auth endpoints — they must be unauthenticated
+  if (
+    url.includes('/auth/login') ||
+    url.includes('/auth/refresh') ||
+    url.includes('/auth/setup')
+  ) {
+    if (config.headers && typeof config.headers.delete === 'function') {
+      config.headers.delete('Authorization')
+    } else if (config.headers) {
+      delete config.headers.Authorization
+    }
+    return
+  }
   const token = getAccessToken()
   if (!token) return
   if (config.headers && typeof config.headers.set === 'function') {
@@ -50,13 +64,12 @@ api.interceptors.response.use(
       url.includes('/auth/setup')
 
     // Skip if: not a 401, no original request, already retried once,
-    // this is an auth endpoint, or there is no refresh token to use.
+    // or this is an auth endpoint.
     if (
       error.response?.status !== 401 ||
       !original ||
       original._retried ||
-      isAuthEndpoint ||
-      !localStorage.getItem(REFRESH_KEY)
+      isAuthEndpoint
     ) {
       if (error.response && (error.response.status as number) >= 500) {
         ui.showToast('Server error — please retry', 'error')
@@ -114,9 +127,7 @@ api.interceptors.response.use(
         localStorage.removeItem('azx_user')
       } catch {}
       if (window.location.pathname !== '/login' && window.location.pathname !== '/setup') {
-        if (errBody === 'invalid token' || errBody === 'invalid refresh' || errBody === 'missing bearer token') {
-          ui.showToast('Session expired — please sign in again', 'error')
-        }
+        ui.showToast('Session expired — please sign in again', 'error')
         window.location.replace('/login')
       }
     }
