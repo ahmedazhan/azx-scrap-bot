@@ -46,6 +46,31 @@ func Health(a *app.App) fiber.Handler {
 	}
 }
 
+func SetupInfo(a *app.App) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var count int64
+		if err := a.DB.Model(&db.User{}).Count(&count).Error; err != nil {
+			return serverError(c, err)
+		}
+		tokenSource := "db"
+		if a.Cfg.SetupToken != "" {
+			tokenSource = "env"
+		} else {
+			var meta db.AppMeta
+			if err := a.DB.Where("key = ?", auth.MetaSetupToken).First(&meta).Error; err != nil {
+				tokenSource = "none"
+			}
+		}
+		return ok(c, fiber.Map{
+			"setup_required": count == 0,
+			"user_count":     count,
+			"token_source":   tokenSource,
+			"env_token_set":  a.Cfg.SetupToken != "",
+			"env_admin_set":  a.Cfg.AdminUser != "" && a.Cfg.AdminPassword != "",
+		}, nil)
+	}
+}
+
 func Login(a *app.App) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var req loginReq
@@ -91,12 +116,18 @@ func Setup(a *app.App) fiber.Handler {
 		if req.Username == "" || len(req.Password) < 8 || req.SetupToken == "" {
 			return badRequest(c, "username, password (>=8 chars), and setup_token required")
 		}
-		var meta db.AppMeta
-		if err := a.DB.Where("key = ?", auth.MetaSetupToken).First(&meta).Error; err != nil {
-			return badRequest(c, "no setup in progress")
-		}
-		if meta.Value != req.SetupToken {
-			return unauthorized(c, "invalid setup token")
+		if a.Cfg.SetupToken != "" {
+			if req.SetupToken != a.Cfg.SetupToken {
+				return unauthorized(c, "invalid setup token")
+			}
+		} else {
+			var meta db.AppMeta
+			if err := a.DB.Where("key = ?", auth.MetaSetupToken).First(&meta).Error; err != nil {
+				return badRequest(c, "no setup in progress")
+			}
+			if meta.Value != req.SetupToken {
+				return unauthorized(c, "invalid setup token")
+			}
 		}
 		var count int64
 		a.DB.Model(&db.User{}).Count(&count)
@@ -111,8 +142,12 @@ func Setup(a *app.App) fiber.Handler {
 		if err := a.DB.Create(&user).Error; err != nil {
 			return badRequest(c, "could not create user")
 		}
-		if err := auth.ConsumeSetupToken(a.DB); err != nil {
-			a.Log.Warn("consume setup token", "err", err)
+		if a.Cfg.SetupToken == "" {
+			if err := auth.ConsumeSetupToken(a.DB); err != nil {
+				a.Log.Warn("consume setup token", "err", err)
+			}
+		} else {
+			a.Log.Info("setup complete (env-driven token used; token will remain active for future restarts)")
 		}
 		return issueTokens(c, a, user.ID)
 	}

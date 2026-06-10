@@ -1,21 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { UserPlus, Eye, EyeOff, KeyRound, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { getErrorMessage } from '@/api/client'
+import { setupApi } from '@/api/setup'
 import ThaanaText from '@/components/ThaanaText.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 
-const username = ref('')
-const password = ref('')
-const confirm = ref('')
-const token = ref('')
+const username = ref(import.meta.env.VITE_ADMIN_USERNAME || 'azhan')
+const password = ref(import.meta.env.VITE_ADMIN_PASSWORD || '')
+const confirm = ref(import.meta.env.VITE_ADMIN_PASSWORD || '')
+const token = ref(import.meta.env.VITE_SETUP_TOKEN || '')
+const tokenFromEnv = computed(() => Boolean(import.meta.env.VITE_SETUP_TOKEN))
 const showPwd = ref(false)
 const submitting = ref(false)
 const localError = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const info = await setupApi.info()
+    if (!info.setup_required) {
+      router.replace('/login')
+    }
+  } catch {
+    // ignore
+  }
+})
 
 async function onSubmit() {
   localError.value = null
@@ -137,6 +150,13 @@ async function onSubmit() {
               class="input-base"
               placeholder="repeat password"
             />
+          </div>
+
+          <div
+            v-if="tokenFromEnv"
+            class="rounded-lg border border-signal-green/30 bg-signal-green/10 px-3 py-2 text-xs text-signal-green"
+          >
+            Token pre-filled from <code class="font-mono">VITE_SETUP_TOKEN</code>. Just set a username and password.
           </div>
 
           <div

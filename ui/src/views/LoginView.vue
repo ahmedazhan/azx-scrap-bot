@@ -4,17 +4,34 @@ import { useRouter, useRoute } from 'vue-router'
 import { LogIn, Eye, EyeOff, ShieldCheck } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { getErrorMessage } from '@/api/client'
+import { setupApi } from '@/api/setup'
 import ThaanaText from '@/components/ThaanaText.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-const username = ref('')
-const password = ref('')
+const username = ref(import.meta.env.VITE_ADMIN_USERNAME || '')
+const password = ref(import.meta.env.VITE_ADMIN_PASSWORD || '')
 const showPwd = ref(false)
 const submitting = ref(false)
 const localError = ref<string | null>(null)
+
+onMounted(async () => {
+  try {
+    const info = await setupApi.info()
+    if (info.setup_required) {
+      router.replace('/setup')
+      return
+    }
+  } catch {
+    // ignore
+  }
+  if (auth.isAuthenticated) {
+    const next = (route.query.next as string) || '/dashboard'
+    router.replace(next)
+  }
+})
 
 async function onSubmit() {
   if (submitting.value) return

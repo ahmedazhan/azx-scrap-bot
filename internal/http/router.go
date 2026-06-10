@@ -28,6 +28,7 @@ func NewRouter(a *app.App) *fiber.App {
 	api := app.Group("/api")
 
 	api.Get("/health", handlers.Health(a))
+	api.Get("/setup-info", handlers.SetupInfo(a))
 
 	authGroup := api.Group("/auth")
 	authGroup.Post("/login", handlers.Login(a))

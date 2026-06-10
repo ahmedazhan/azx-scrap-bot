@@ -16,7 +16,11 @@ const (
 	MetaSetupUsedAt = "setup_used_at"
 )
 
-func EnsureSetupToken(gdb *gorm.DB, log *slog.Logger) (string, bool, error) {
+func EnsureSetupToken(gdb *gorm.DB, log *slog.Logger, envToken string) (string, bool, error) {
+	if envToken != "" {
+		log.Info("setup token: from env (AZX_SETUP_TOKEN)")
+		return envToken, false, nil
+	}
 	var meta db.AppMeta
 	err := gdb.Where("key = ?", MetaSetupToken).First(&meta).Error
 	if err == nil {
@@ -30,12 +34,37 @@ func EnsureSetupToken(gdb *gorm.DB, log *slog.Logger) (string, bool, error) {
 	if err := gdb.Create(&meta).Error; err != nil {
 		return "", false, err
 	}
-	log.Info("generated setup token")
+	log.Info("setup token: generated (auto, persisted to DB)")
 	return tok, true, nil
 }
 
 func ConsumeSetupToken(gdb *gorm.DB) error {
 	return gdb.Where("key = ?", MetaSetupToken).Delete(&db.AppMeta{}).Error
+}
+
+func EnsureAdminUser(gdb *gorm.DB, log *slog.Logger, username, password string) error {
+	if username == "" || password == "" {
+		return nil
+	}
+	var count int64
+	if err := gdb.Model(&db.User{}).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		log.Info("admin user: already exists, skipping auto-create", "username", username)
+		return nil
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+	u := db.User{Username: username, PasswordHash: hash, Theme: "dark", FilterMode: "sheet"}
+	if err := gdb.Create(&u).Error; err != nil {
+		return err
+	}
+	log.Info("admin user: auto-created from env", "username", username)
+	_ = ConsumeSetupToken(gdb)
+	return nil
 }
 
 func EnsureJWTSecret(gdb *gorm.DB, envSecret string) (string, error) {

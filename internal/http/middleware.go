@@ -79,7 +79,8 @@ func middlewareJWT(a *app.App) fiber.Handler {
 			strings.HasPrefix(path, "/api/auth/refresh") ||
 			strings.HasPrefix(path, "/api/auth/setup") ||
 			strings.HasPrefix(path, "/api/health") ||
-			strings.HasPrefix(path, "/api/logs/") {
+			strings.HasPrefix(path, "/api/logs/") ||
+			strings.HasPrefix(path, "/api/setup-info") {
 			a.Log.Debug("jwt bypass", "path", path)
 			return c.Next()
 		}

@@ -19,6 +19,9 @@ type Config struct {
 	LogCompress   bool
 	AssetsDir     string
 	JWTSecret     string
+	SetupToken    string
+	AdminUser     string
+	AdminPassword string
 }
 
 func envOr(key, def string) string {
@@ -92,6 +95,9 @@ func Load(args []string) (*Config, error) {
 	logCompress := fs.Bool("log-compress", true, "gzip old logs")
 	assetsDir := fs.String("assets-dir", "", "serve SPA from this directory (dev only; falls back to embedded)")
 	jwtSecret := fs.String("jwt-secret", "", "HMAC secret for signing JWTs (overrides the DB-stored one)")
+	setupToken := fs.String("setup-token", "", "fixed setup token (overrides the auto-generated one; recommended for env-driven dev)")
+	adminUser := fs.String("admin-user", "", "auto-create this admin user on boot (requires --admin-password)")
+	adminPassword := fs.String("admin-password", "", "password for the auto-created admin (>= 8 chars)")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -106,6 +112,9 @@ func Load(args []string) (*Config, error) {
 		LogCompress:   envBoolOr("LOG_COMPRESS", *logCompress),
 		AssetsDir:     envOr("ASSETS_DIR", *assetsDir),
 		JWTSecret:     envOr("JWT_SECRET", *jwtSecret),
+		SetupToken:    envOr("AZX_SETUP_TOKEN", *setupToken),
+		AdminUser:     envOr("AZX_ADMIN_USERNAME", *adminUser),
+		AdminPassword: envOr("AZX_ADMIN_PASSWORD", *adminPassword),
 	}
 
 	switch strings.ToLower(cfg.LogLevel) {
@@ -115,6 +124,9 @@ func Load(args []string) (*Config, error) {
 	}
 	if cfg.LogMaxSize <= 0 {
 		return nil, fmt.Errorf("log-max-size must be > 0")
+	}
+	if cfg.AdminUser != "" && len(cfg.AdminPassword) < 8 {
+		return nil, fmt.Errorf("--admin-password must be at least 8 characters when --admin-user is set")
 	}
 	return cfg, nil
 }
