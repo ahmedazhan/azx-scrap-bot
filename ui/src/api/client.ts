@@ -13,8 +13,12 @@ export const api: AxiosInstance = axios.create({
 api.interceptors.request.use((config) => {
   const auth = useAuthStore()
   if (auth.access) {
-    config.headers = config.headers || {}
-    config.headers.Authorization = `Bearer ${auth.access}`
+    if (config.headers && typeof (config.headers as any).set === 'function') {
+      ;(config.headers as any).set('Authorization', `Bearer ${auth.access}`)
+    } else {
+      config.headers = (config.headers as any) || {}
+      ;(config.headers as any).Authorization = `Bearer ${auth.access}`
+    }
   }
   return config
 })
@@ -31,8 +35,13 @@ api.interceptors.response.use(
       if (!refreshing) refreshing = auth.tryRefresh()
       const ok = await refreshing
       refreshing = null
-      if (ok && original.headers) {
-        original.headers.Authorization = `Bearer ${auth.access}`
+      if (ok && original) {
+        if (original.headers && typeof (original.headers as any).set === 'function') {
+          ;(original.headers as any).set('Authorization', `Bearer ${auth.access}`)
+        } else {
+          original.headers = (original.headers as any) || {}
+          ;(original.headers as any).Authorization = `Bearer ${auth.access}`
+        }
         return api.request(original)
       }
       auth.logout()
