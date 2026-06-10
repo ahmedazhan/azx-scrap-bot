@@ -17,8 +17,15 @@ export const api: AxiosInstance = axios.create({
 // the value is always current — the Pinia store's ref can transiently
 // be empty during HMR or right after setTokens(), which would otherwise
 // cause authed requests to land without an Authorization header.
+function looksLikeJwt(s: string | null | undefined): boolean {
+  if (!s) return false
+  const parts = s.split('.')
+  return parts.length === 3 && parts.every(p => p.length > 0)
+}
+
 function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS_KEY)
+  const v = localStorage.getItem(ACCESS_KEY)
+  return looksLikeJwt(v) ? v : null
 }
 
 function attachAuthHeader(config: any) {
@@ -84,7 +91,10 @@ api.interceptors.response.use(
       refreshing = (async () => {
         try {
           const stored = localStorage.getItem(REFRESH_KEY)
-          if (!stored) return false
+          if (!looksLikeJwt(stored)) {
+            if (stored) localStorage.removeItem(REFRESH_KEY)
+            return false
+          }
           const res = await fetch((import.meta.env.VITE_API_BASE_URL || '/api') + '/auth/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -93,7 +103,7 @@ api.interceptors.response.use(
           if (!res.ok) return false
           const json = await res.json()
           const data = json?.data
-          if (!data?.access || !data?.refresh) return false
+          if (!looksLikeJwt(data?.access) || !looksLikeJwt(data?.refresh)) return false
           localStorage.setItem(ACCESS_KEY, data.access)
           localStorage.setItem(REFRESH_KEY, data.refresh)
           return true

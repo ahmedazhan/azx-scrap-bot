@@ -8,9 +8,30 @@ const ACCESS_KEY = 'azx_access'
 const REFRESH_KEY = 'azx_refresh'
 const USER_KEY = 'azx_user'
 
+// A valid JWT has 3 base64url segments separated by dots.
+function looksLikeJwt(s: string | null | undefined): boolean {
+  if (!s) return false
+  const parts = s.split('.')
+  return parts.length === 3 && parts.every(p => p.length > 0)
+}
+
+function readValidJwt(key: string): string | null {
+  const v = localStorage.getItem(key)
+  return looksLikeJwt(v) ? v : null
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const access = ref<string | null>(localStorage.getItem(ACCESS_KEY))
-  const refresh = ref<string | null>(localStorage.getItem(REFRESH_KEY))
+  // If localStorage has been poisoned with non-JWT strings (e.g. the
+  // literal "undefined" from a previous bug), clear them.
+  if (localStorage.getItem(ACCESS_KEY) && !looksLikeJwt(localStorage.getItem(ACCESS_KEY))) {
+    localStorage.removeItem(ACCESS_KEY)
+  }
+  if (localStorage.getItem(REFRESH_KEY) && !looksLikeJwt(localStorage.getItem(REFRESH_KEY))) {
+    localStorage.removeItem(REFRESH_KEY)
+  }
+
+  const access = ref<string | null>(readValidJwt(ACCESS_KEY))
+  const refresh = ref<string | null>(readValidJwt(REFRESH_KEY))
   const user = ref<User | null>(
     localStorage.getItem(USER_KEY) ? JSON.parse(localStorage.getItem(USER_KEY)!) : null,
   )
@@ -20,6 +41,10 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!access.value)
 
   function setTokens(a: string, r: string) {
+    if (!looksLikeJwt(a) || !looksLikeJwt(r)) {
+      console.warn('setTokens: refusing to write non-JWT values to localStorage')
+      return
+    }
     access.value = a
     refresh.value = r
     localStorage.setItem(ACCESS_KEY, a)
